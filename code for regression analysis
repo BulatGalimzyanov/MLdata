@@ -1,0 +1,376 @@
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Program p = new Program();
+            p.start_modul();
+            Console.ReadKey();
+        }
+
+        double a0_min, a0_max, a1_min, a1_max, a2_min, a2_max, a3_min, a3_max, a4_min, a4_max, a5_min, a5_max, a6_min, a6_max;
+        double a0, a1, a2, a3, a4, a5, a6, a0_bs, a1_bs, a2_bs, a3_bs, a4_bs, a5_bs, a6_bs;
+        double[] Y, X1, X2, Y_L;
+        int N, raund;
+        double dv, dtv;
+        bool p0, p1, p2, p3, p4, p5, p6, new_road, pdf = true;
+        double Xi_old, summXi;
+        double[] Xisqr_0;
+        double y, err, sum_err;
+        void start_modul()
+        {
+            load_file();
+            load_init_ranges();
+            while (dv > 0.001)
+            {
+                load_error_6par();
+                //load_error_4par();
+                //load_error_3par();
+                //load_error_5par();
+            }
+            test();
+        }
+        void test()
+        {
+            sum_err = 0;
+            FileStream fss = new FileStream("test.txt", FileMode.Create);
+            StreamWriter stww = new StreamWriter(fss);
+            for (int i = 0; i < N; i++)
+            {
+                y = a0_bs + a1_bs * X1[i] + a2_bs * X2[i] + a3_bs * X1[i] * X2[i] + a4_bs * X1[i] * X1[i] + a5_bs * X2[i] * X2[i] + a6_bs * Math.Pow(X1[i] * X2[i], 2.0);
+                //y = a0_bs + a1_bs * X1[i] + a2_bs * X2[i];
+                //y = a0_bs + a1_bs * X1[i] + a2_bs * X2[i] + a3_bs * X1[i] * X2[i];
+                //y = a0_bs + a1_bs * X1[i] + a2_bs * X2[i] + a3_bs * Math.Pow(X1[i], 2.0) + a4_bs * Math.Pow(X2[i], 2.0);
+                if (Y_L[i] >= y) { err = (Y_L[i] - y) * 100.0 / Y_L[i]; }
+                if (Y_L[i] < y) { err = (y - Y_L[i]) * 100.0 / y; }
+                sum_err += err;
+                stww.WriteLine(Y_L[i] + " " + y + " " + err);
+            }
+            stww.WriteLine("Summ Error = " + sum_err / N);
+            stww.Close(); fss.Close();
+        }
+
+
+        void load_file()
+        {
+            X1 = new double[500];
+            X2 = new double[500];
+            Y_L = new double[500];
+            Y = new double[500];
+            FileStream fs = new FileStream("input_data.txt", FileMode.Open);
+            StreamReader str = new StreamReader(fs);
+            string st, sts; int idx; N = 0;
+            st = str.ReadLine();
+            while (str.EndOfStream == false)
+            {
+                st = str.ReadLine(); idx = st.IndexOf(" "); sts = st.Remove(0, idx + 1); idx = sts.IndexOf(" ");
+                X1[N] = Convert.ToDouble(sts.Substring(0, idx));
+                st = sts.Remove(0, idx + 1); idx = st.IndexOf(" ");
+                X2[N] = Convert.ToDouble(st.Substring(0, idx));
+                sts = st.Remove(0, idx + 1); idx = sts.IndexOf(" ");
+                Y_L[N] = Convert.ToDouble(sts);
+                N++;
+            }
+            str.Close(); fs.Close();
+        }
+        void load_init_ranges()
+        {
+            dv = 500; dtv = 1.5;
+            a0_min = -2000.0; a0_max = 2000.0;
+            a1_min = -2000.0; a1_max = 2000.0;
+            a2_min = -2000.0; a2_max = 2000.0;
+            a3_min = -2000.0; a3_max = 2000.0;
+            a4_min = -2000.0; a4_max = 2000.0;
+            a5_min = -2000.0; a5_max = 2000.0;
+            a6_min = -2000.0; a6_max = 2000.0;
+            a0 = a0_min; a1 = a1_min; a2 = a2_min;
+            a3 = a3_min; a4 = a4_min; a5 = a5_min; a6 = a6_min;
+            p6 = true;
+            raund = 0;
+            FileStream fs = new FileStream("best_parameters.txt", FileMode.Create);
+            StreamWriter stw = new StreamWriter(fs);
+            stw.Close(); fs.Close();
+        }
+        #region 6par
+        void load_error_6par()
+        {
+            Xisqr_0 = new double[N];
+            summXi = 0;
+            load_equation_6par();
+            for (int mp = 0; mp < N; mp++)
+            {
+                Xisqr_0[mp] = Math.Pow((Y_L[mp] - Y[mp]), 2.0);
+                summXi += Xisqr_0[mp];
+            }
+            summXi = summXi / N;
+            if (pdf) { Xi_old = summXi + 100.0; pdf = false; }
+            if (summXi < Xi_old)
+            {
+                FileStream fs = new FileStream("best_parameters.txt", FileMode.Append);
+                StreamWriter stw = new StreamWriter(fs);
+                a0_bs = a0;
+                a1_bs = a1;
+                a2_bs = a2;
+                a3_bs = a3;
+                a4_bs = a4;
+                Xi_old = summXi;
+                stw.WriteLine("Err: " + summXi + ", prm " + a0 + " " + a1 + " " + a2 + " " + a3 + " " + a4 + " " + a5 + " " + a6);
+                Console.WriteLine("Err: " + summXi + ", prm " + a0 + " " + a1 + " " + a2 + " " + a3 + " " + a4 + " " + a5 + " " + a6);
+                stw.Close(); fs.Close();
+            }
+            load_nextpar_6par();
+        }
+        void load_equation_6par()
+        {
+            for (int i = 0; i < N; i++)
+            {
+                Y[i] = a0 + a1 * X1[i] + a2 * X2[i] + a3 * X1[i] * X2[i] + a4 * Math.Pow(X1[i], 2.0) + a5 * Math.Pow(X2[i], 2.0) + a6 * Math.Pow(X1[i] * X2[i], 2.0);
+            }
+        }
+        void load_nextpar_6par()
+        {
+            new_road = false;
+            if (p0)
+            {
+                a0 = a0 + dv; if (a0 > a0_max) { new_road = true; a0 = a0_min; } p0 = false;
+            }
+            if (new_road == false)
+            {
+                if (p1)
+                {
+                    a1 = a1 + dv; if (a1 > a1_max) { p0 = true; a1 = a1_min; } p1 = false;
+                }
+                if (p2)
+                {
+                    a2 = a2 + dv; if (a2 > a2_max) { p1 = true; a2 = a2_min; } p2 = false;
+                }
+                if (p3)
+                {
+                    a3 = a3 + dv; if (a3 > a3_max) { p2 = true; a3 = a3_min; } p3 = false;
+                }
+                if (p4)
+                {
+                    a4 = a4 + dv; if (a4 > a4_max) { p3 = true; a4 = a4_min; } p4 = false;
+                }
+                if (p5)
+                {
+                    a5 = a5 + dv; if (a5 > a5_max) { p4 = true; a5 = a5_min; } p5 = false;
+                }
+                if (p6)
+                {
+                    a6 = a6 + dv; if (a6 > a6_max) { p5 = true; a6 = a6_min; }
+                }
+            }
+            if (new_road)
+            {
+                raund++;
+                dv = dv / 2.0;
+                a0 = a0_bs - dv; a0_max = a0_bs + dv; a0_min = a0;
+                a1 = a1_bs - dv; a1_max = a1_bs + dv; a1_min = a1;
+                a2 = a2_bs - dv; a2_max = a2_bs + dv; a2_min = a2;
+                a3 = a3_bs - dv; a3_max = a3_bs + dv; a3_min = a3;
+                a4 = a4_bs - dv; a4_max = a4_bs + dv; a4_min = a4;
+                a5 = a5_bs - dv; a5_max = a5_bs + dv; a5_min = a5;
+                a6 = a6_bs - dv; a6_max = a6_bs + dv; a6_min = a6;
+            }
+            Console.WriteLine("Err " + summXi + ", best par" + a0 + " " + a1 + " " + a2 + " " + a3 + " " + a4);
+        }
+        #endregion
+        #region 5par
+        void load_error_5par()
+        {
+            Xisqr_0 = new double[N];
+            summXi = 0;
+            load_equation_5par();
+            for (int mp = 0; mp < N; mp++)
+            {
+                Xisqr_0[mp] = Math.Pow((Y_L[mp] - Y[mp]), 2.0);
+                summXi += Xisqr_0[mp];
+            }
+            summXi = summXi / N;
+            if (pdf) { Xi_old = summXi + 100.0; pdf = false; }
+            if (summXi < Xi_old)
+            {
+                FileStream fs = new FileStream("best_parameters.txt", FileMode.Append);
+                StreamWriter stw = new StreamWriter(fs);
+                a0_bs = a0;
+                a1_bs = a1;
+                a2_bs = a2;
+                a3_bs = a3;
+                a4_bs = a4;
+                Xi_old = summXi;
+                stw.WriteLine("Err: " + summXi + ", prm " + a0 + " " + a1 + " " + a2 + " " + a3 + " " + a4);
+                Console.WriteLine("Err: " + summXi + ", prm " + a0 + " " + a1 + " " + a2 + " " + a3 + " " + a4);
+                stw.Close(); fs.Close();
+            }
+            load_nextpar_5par();
+        }
+        void load_equation_5par()
+        {
+            for (int i = 0; i < N; i++)
+            {
+                Y[i] = a0 + a1 * X1[i] + a2 * X2[i] + a3 * Math.Pow(X1[i], 2.0) + a4 * Math.Pow(X2[i], 2.0);
+            }
+        }
+        void load_nextpar_5par()
+        {
+            new_road = false;
+            if (p0) 
+            { 
+                a0 = a0 + dv; if (a0 > a0_max) { new_road = true; a0 = a0_min; } p0 = false; 
+            }
+            if (new_road == false)
+            {
+                if (p1) 
+                { 
+                    a1 = a1 + dv; if (a1 > a1_max) { p0 = true; a1 = a1_min; } p1 = false; 
+                }
+                if (p2) 
+                { 
+                    a2 = a2 + dv; if (a2 > a2_max) { p1 = true; a2 = a2_min; } p2 = false; 
+                }
+                if (p3) 
+                { 
+                    a3 = a3 + dv; if (a3 > a3_max) { p2 = true; a3 = a3_min; } p3 = false; 
+                }
+                if (p4) 
+                { 
+                    a4 = a4 + dv; if (a4 > a4_max) { p3 = true; a4 = a4_min; } 
+                }
+            }
+            if (new_road)
+            {
+                raund++;
+                dv = dv / 2.0;
+                a0 = a0_bs - dv; a0_max = a0_bs + dv; a0_min = a0;
+                a1 = a1_bs - dv; a1_max = a1_bs + dv; a1_min = a1;
+                a2 = a2_bs - dv; a2_max = a2_bs + dv; a2_min = a2;
+                a3 = a3_bs - dv; a3_max = a3_bs + dv; a3_min = a3;
+                a4 = a4_bs - dv; a4_max = a4_bs + dv; a4_min = a4;
+            }
+            Console.WriteLine("Err "+summXi+", best par" + a0 + " " + a1 + " " + a2 + " " + a3 + " " + a4);
+        }
+        #endregion
+        #region 3par
+        void load_error_3par()
+        {
+            Xisqr_0 = new double[N];
+            summXi = 0;
+            load_equation_3par();
+            for (int mp = 0; mp < N; mp++)
+            {
+                Xisqr_0[mp] = Math.Pow((Y_L[mp] - Y[mp]), 2.0);
+                summXi += Xisqr_0[mp];
+            }
+            summXi = summXi / N;
+            if (pdf) { Xi_old = summXi + 100.0; pdf = false; }
+            if (summXi < Xi_old)
+            {
+                FileStream fs = new FileStream("best_parameters.txt", FileMode.Append);
+                StreamWriter stw = new StreamWriter(fs);
+                a0_bs = a0;
+                a1_bs = a1;
+                a2_bs = a2;
+                Xi_old = summXi;
+                stw.WriteLine("Err: " + summXi + ", prm " + a0.ToString() + " " + a1.ToString() + " " + a2.ToString());
+                Console.WriteLine("Err: " + summXi + ", prm " + a0.ToString() + " " + a1.ToString() + " " + a2.ToString());
+                stw.Close(); fs.Close();
+            }
+            load_nextpar_3par();
+        }
+        void load_equation_3par()
+        {
+            for (int i = 0; i < N; i++)
+            {
+                Y[i] = a0 + a1 * X1[i] + a2 * X2[i];
+            }
+        }
+        void load_nextpar_3par()
+        {
+            new_road = false;
+            if (p0) { a0 = a0 + dv; if (a0 > a0_max) { new_road = true; a0 = a0_min; } p0 = false; }
+            if (new_road == false)
+            {
+                if (p1) { a1 = a1 + dv; if (a1 > a1_max) { p0 = true; a1 = a1_min; } p1 = false; }
+                if (p2) { a2 = a2 + dv; if (a2 > a2_max) { p1 = true; a2 = a2_min; } }
+            }
+            if (new_road)
+            {
+                raund++;
+                dv = dv / dtv;
+                a0 = a0_bs - dv; a0_max = a0_bs + dv; a0_min = a0;
+                a1 = a1_bs - dv; a1_max = a1_bs + dv; a1_min = a1;
+                a2 = a2_bs - dv; a2_max = a2_bs + dv; a2_min = a2;
+            }
+            //Console.WriteLine("Err " + summXi + ", best par " + a0 + " " + a1 + " " + a2);
+        }
+        #endregion
+        #region 4par
+        void load_error_4par()
+        {
+            Xisqr_0 = new double[N];
+            summXi = 0;
+            load_equation_4par();
+            for (int mp = 0; mp < N; mp++)
+            {
+                Xisqr_0[mp] = Math.Pow((Y_L[mp] - Y[mp]), 2.0);
+                summXi += Xisqr_0[mp];
+            }
+            summXi = summXi / N;
+            if (pdf) { Xi_old = summXi + 100.0; pdf = false; }
+            if (summXi < Xi_old)
+            {
+                FileStream fs = new FileStream("best_parameters.txt", FileMode.Append);
+                StreamWriter stw = new StreamWriter(fs);
+                a0_bs = a0;
+                a1_bs = a1;
+                a2_bs = a2;
+                a3_bs = a3;
+                Xi_old = summXi;
+                stw.WriteLine("Err: " + summXi + ", prm " + a0 + " " + a1 + " " + a2 + " " + a3);
+                Console.WriteLine("Err: " + summXi + ", prm " + a0 + " " + a1 + " " + a2 + " " + a3);
+                stw.Close(); fs.Close();
+            }
+            load_nextpar_4par();
+        }
+        void load_equation_4par()
+        {
+            for (int i = 0; i < N; i++)
+            {
+                Y[i] = a0 + a1 * X1[i] + a2 * X2[i] + a3 * X1[i] * X2[i];
+            }
+        }
+        void load_nextpar_4par()
+        {
+            new_road = false;
+            if (p0)
+            {
+                a0 = a0 + dv; if (a0 > a0_max) { new_road = true; a0 = a0_min; } p0 = false;
+            }
+            if (new_road == false)
+            {
+                if (p1)
+                {
+                    a1 = a1 + dv; if (a1 > a1_max) { p0 = true; a1 = a1_min; } p1 = false;
+                }
+                if (p2)
+                {
+                    a2 = a2 + dv; if (a2 > a2_max) { p1 = true; a2 = a2_min; } p2 = false;
+                }
+                if (p3)
+                {
+                    a3 = a3 + dv; if (a3 > a3_max) { p2 = true; a3 = a3_min; }
+                }
+            }
+            if (new_road)
+            {
+                raund++;
+                dv = dv / 2.0;
+                a0 = a0_bs - dv; a0_max = a0_bs + dv; a0_min = a0;
+                a1 = a1_bs - dv; a1_max = a1_bs + dv; a1_min = a1;
+                a2 = a2_bs - dv; a2_max = a2_bs + dv; a2_min = a2;
+                a3 = a3_bs - dv; a3_max = a3_bs + dv; a3_min = a3;
+            }
+            Console.WriteLine("Err " + summXi + ", best par" + a0 + " " + a1 + " " + a2 + " " + a3);
+        }
+        #endregion
+    }
